@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 3.0//EN">
+
+<HTML><HEAD>
+<META HTTP-EQUIV="Keywords" NAME="Keywords" CONTENT="texwordcount.pl, latex, tex, word count, perl, script">
+<LINK REL="stylesheet" HREF="npic.css"><TITLE>TexWordCount: a script to count words in LaTeX</TITLE>
+</HEAD><BODY BGCOLOR="#FFFFFF">
+<CENTER><H1>TexWordCount: a script to count words in LaTeX</H1></CENTER>
+
+<P ALIGN="right" CLASS="small">[ <A
+HREF="http://wing.comp.nus.edu.sg/">Back to the WING home page</A>
+]</P>
+
+<P>This is the home page of TexWordCount.pl, a perl script to count
+words in TeX and LaTeX documents.  It is free to be distributed and
+used (personal, commercial or otherwise) by anyone, licensed under the
+<A HREF="http://www.gnu.org/licenses/lgpl.html">Lesser GNU Public
+License (LGPL)</A>.
+</P>
+
+<BR CLEAR="ALL">
+
+<!-- Content ---------------------------------------------------------------------- -->
+
+<H2>&nbsp;Download</H2>
+
+<P> Download <A
+HREF="http://www.comp.nus.edu.sg/~kanmy/software/texWordCount.pl">texWordCount.pl</A>.  Requires perl.
+
+<!-- Content ---------------------------------------------------------------------- -->
+
+<H2>&nbsp;Demonstration</H2>
+
+<FORM ENCTYPE="multipart/form-data" METHOD="post" action="texWordCount.cgi">
+
+<B>Option 1:</B> Cut and paste your TeX file to have the words counted.<BR/>
+<TEXTAREA ROWS=10 COLS=80 NAME=input></TEXTAREA><BR/>
+<INPUT TYPE=SUBMIT VALUE=Count!>
+</CENTER> </FORM>
+
+<FORM METHOD="post" action="texWordCount.cgi">
+<B>Option 2:</B>
+Or enter a file containing a single LaTeX file to count words: <INPUT TYPE=FILE
+NAME=file><BR/>
+<INPUT TYPE=SUBMIT VALUE=Count!> </CENTER> </FORM>
+
+<!-- Kudos ---------------------------------------------------------------------- -->
+
+<H2>&nbsp;Thanks to...</H2>
+
+<P>TexWordCount owes much of its added functionality and code to
+contributors which are incorporated in the current release.  Sam
+Tygier at <A
+HREF="http://www.tygier.co.uk/">http://www.tygier.co.uk/</A> added
+functionality for <code>\input</code> and recursive
+<code>\include</code> and more recently, for counting words with
+non-breaking spaces (LaTeX "~").  Gregor Heinrich at <A
+HREF="http://www.arbylon.net/">http://www.arbylon.net/</A> added
+handling of document classes with a chapter level (book,
+report). Martin Magnusson modified it for running headers.  Edward
+Vigmond added proper counting words in captions. Michael Dayan
+corrected bug in subsubsection counting.
+
+<!-- Kudos ---------------------------------------------------------------------- -->
+
+<H2>&nbsp;Troubleshooting</H2>
+
+<P>If you use the script and find problems with its execution, please
+report them to me.  If you have any fixes that would be even better.
+
+<P><B>Known bugs</B>: Daniel Thomas reports that: "While using
+texWordCount.pl I noticed that using the -u option results in the file
+being word counted being modified in a rather dangerous manner likely
+to result in data loss if the user does not have a backup.  (among
+other things the \inputs were permanently input and the end of the
+file was cut off completely.)"
+
+<!-- People  ---------------------------------------------------------------------- -->
+
+<H2>&nbsp;Competitors</H2>
+
+<P>A more comprehensive version of word counting that has a UI is also
+available from: <A
+HREF="http://app.uio.no/ifi/texcount/index.html">http://app.uio.no/ifi/texcount/index.html</A>.
+You might want to try their tool out.  Our tool is for fairly simple
+usage and for those environments that already have the prerequisites
+installed.
+
+<!-- People  ---------------------------------------------------------------------- -->
+
+<H2>&nbsp;Group Members</H2>
+
+<UL>
+  <LI> <A HREF="http://www.comp.nus.edu.sg/~kanmy">Min-Yen Kan</A> - Developer
+</UL>
+
+<HR>
+<H5><ADDRESS><A HREF="http://www.comp.nus.edu.sg/~kanmy">Min-Yen Kan</A> &lt;<A HREF="mailto:kanmy@comp.nus.edu.sg">kanmy@comp.nus.edu.sg</A>&gt;</ADDRESS>
+Created on: Mon May 22 12:57:43 2006
+<!-- hhmts start -->
+| Version: 1.0
+
+| Last modified: 
+Wed Jun 14 17:36:27 2006
+<!-- hhmts end -->
+</H5></BODY> </HTML>
