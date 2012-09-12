@@ -30,21 +30,6 @@ use the -i switch for chapters
  ORIGIN: modified by Michael Dayan <mdayan.research :: googlemail . com> on 4 June for bug fixes wrt to subsubsection counting
  ORIGIN: modified by Sam Tygier <samtygier :: yahoo . co . uk> at http://www.tygier.co.uk/ on 13 Aug 2011 to add functionality for breaking by non-breaking spaces (~)
 
- RCS:$Log: texWordCount,v $
- RCS:
- RCS:Revision 1.5  Thu Jan 15 21:22:00 SGT 2009 kanmy
- RCS:Merging Martin Magnusson's edits for running headers
- RCS:
- RCS:Revision 1.4  Thu Mar 27 14:17:28 SGT 2008 kanmy
- RCS:Merging Gregor's edits in for doc classes with chapter levels
- RCS:
- RCS:Revision 1.3  2007/05/10 08:53:13  kanmy
- RCS:Merging Sam's edits for handling recursive input.  See subprocedure for include_files
- RCS:
- RCS:Revision 1.2  2007/01/12 08:53:13  kanmy
- RCS:Sam Tygier's edits to handle input
- RCS:
-
 =cut
 
 require 5.0;
@@ -93,7 +78,7 @@ sub Version {
 }
 
 sub License {
-  print STDERR "# Copyright 2002, 2007, 2009 \251 by Min-Yen Kan; modified by Sam Tygier, 2007; by Gregor Heinrich, 2008; by Martin Magnusson, 2009; by Edward Vigmond, 2009\n";
+  print STDERR "# Copyright 2002, 2007, 2009, 2012 \251 by Min-Yen Kan; modified by Sam Tygier, 2007; by Gregor Heinrich, 2008; by Martin Magnusson, 2009; by Edward Vigmond, 2009\n";
 }
 
 ###
@@ -113,6 +98,7 @@ getopts ('cdhiquv');
 # global variables - over multiple files
 my $many = 0;
 my $manySum = 0;
+my $includeOtherFiles = false;
 
 # use (!defined $opt_X) for options with arguments
 if (!$opt_q) { License(); }		  # call License, if asked for
@@ -160,7 +146,8 @@ my ($twcBegin, $twcEnd);
 # recursion.
 # warning, does not check \includeonly
 my @headdoc = <$fh>;
-my @wholedoc = include_files(@headdoc);
+
+my ($includeOtherFiles,@wholedoc) = includeFiles(@headdoc);
 
 # chapter 0 for all text before first (or without any) chapter
 $index[0]++;
@@ -363,34 +350,45 @@ while (defined $floatsum[$i]) {
 }
 # end - added by Edward Vigmond Thu Mar 26 22:23:52 SGT 2009
 
+print "iof = $includeOtherFiles\n";
 print $buf;
 
 if (defined $twcBegin &&
     defined $twcEnd &&
     $opt_u) {
-  # untaint $filename variable
-  if ($filename =~ /^([-\@\w.]+)$/) {
-    $filename = $1;                     # $filename now untainted
-  } else {
-    die "# $progname fatal\t\tTainted data in \"$filename\"";        # log this somewhere
-  }
+  # user requested us to update the file itself.  
 
-  open (OF, ">$filename") || die "# $progname fatal\t\tcan't rewrite word count section\n";
-  for (my $i = 0; $i < $twcBegin; $i++) {
-    print OF $lines[$i];
+  if ($includeOtherFiles eq true) {
+    # update files don't work with \inputs due to the way the patches
+    # have impaired the data structures to handle things properly.
+    print STDERR "# $progname warning\t\tIgnoring your request to update the file (-u);\n";
+    print STDERR "#\t\t\t\t\tthis flag currently doesn't work properly with \\includes or \\inputs\n";
+  } else {
+    # all's ok, go ahead and output the file
+    # untaint $filename variable
+      if ($filename =~ /^([-\@\w.]+)$/) {
+	$filename = $1;                     # $filename now untainted
+      } else {
+	die "# $progname fatal\t\tTainted data in \"$filename\"";        # log this somewhere
+      }
+    
+    open (OF, ">$filename") || die "# $progname fatal\t\tcan't rewrite word count section\n";
+    for (my $i = 0; $i < $twcBegin; $i++) {
+      print OF $lines[$i];
+    }
+    my @bufLines = split (/\n/,$buf);
+    print OF "% texWordCount - begin\n";
+    print OF "% generated on " . localtime(time()) . "\n";
+    print OF "% command was \"$cmdLine\"\n";
+    for (my $k = 0; $k <= $#bufLines; $k++) {
+      print OF "% ", $bufLines[$k], "\n";
+    }
+    print OF "% texWordCount - end\n";
+    for (my $i = $twcEnd+1; $i < $#lines; $i++) {
+      print OF $lines[$i];
+    }
+    close (OF);
   }
-  my @bufLines = split (/\n/,$buf);
-  print OF "% texWordCount - begin\n";
-  print OF "% generated on " . localtime(time()) . "\n";
-  print OF "% command was \"$cmdLine\"\n";
-  for (my $k = 0; $k <= $#bufLines; $k++) {
-    print OF "% ", $bufLines[$k], "\n";
-  }
-  print OF "% texWordCount - end\n";
-  for (my $i = $twcEnd+1; $i < $#lines; $i++) {
-    print OF $lines[$i];
-  }
-  close (OF);
 }
 
 if ($filename = shift) {
@@ -407,6 +405,8 @@ if ($filename = shift) {
   undef @sssNames;
   undef @floatlabel; # added by Edward Vigmond Thu Mar 26 22:23:52 SGT 2009
   undef @floatsum; # added by Edward Vigmond Thu Mar 26 22:23:52 SGT 2009
+  undef $twcBegin;
+  undef $twcEnd;
   undef @lines;
 
   goto NEWFILE;
@@ -421,24 +421,25 @@ if ($many == 1) {
 ### END of main program
 ###
 
-# From Sam Tygier (10 May 2007)
-sub include_files{
-   my @part_doc = ();
-   my @whole_doc = ();
-   push(@part_doc, @_);
+# From Sam Tygier (10 May 2007; modified by Min-Yen Kan 13 Sep 2012)
+sub includeFiles {
+  my @partDoc = ();
+  my @wholeDoc = ();
+  my $foundIncludes = false;
+  push(@partDoc, @_);
 
-   foreach (@part_doc) {
-     if (/^\\(input|include){([^}]*)}/) {
-           open (INPUT, $2.".tex") || die "# $progname crash\t\tCan't
-open \"$2\"";
-           my @sub_doc = <INPUT>;
-           push(@whole_doc, include_files(@sub_doc));
-	 } else {
-           push(@whole_doc, $_);
-	 }
-   }
-   return @whole_doc;
- }
-
-
-
+  foreach (@partDoc) {
+    if (/^\\(input|include){([^}]*)}/) {
+      $foundIncludes = true;
+      my $fn = $2;
+      if ($fn !~ /.tex$/) { $fn .= ".tex"; }
+      open (INPUT, $fn) || die "# $progname crash\t\tCan't open \"$fn\"";
+      my @subDoc = <INPUT>;
+      my ($fi, @doc) = includeFiles(@subDoc);
+      push(@wholeDoc,@doc);
+    } else {
+      push(@wholeDoc, $_);
+    }
+  }
+  return ($foundIncludes, @wholeDoc);
+}
