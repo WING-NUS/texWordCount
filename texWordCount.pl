@@ -350,7 +350,6 @@ while (defined $floatsum[$i]) {
 }
 # end - added by Edward Vigmond Thu Mar 26 22:23:52 SGT 2009
 
-print "iof = $includeOtherFiles\n";
 print $buf;
 
 if (defined $twcBegin &&

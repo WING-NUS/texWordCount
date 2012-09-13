@@ -33,18 +33,37 @@ perl.
 
 <H2>&nbsp;Demonstration</H2>
 
-<FORM ENCTYPE="multipart/form-data" METHOD="post" action="texWordCount.cgi">
+<FORM METHOD="post" action="texWordCount.cgi">
 
 <B>Option 1:</B> Cut and paste your TeX file to have the words counted.<BR/>
-<TEXTAREA ROWS=10 COLS=80 NAME=input></TEXTAREA><BR/>
+<TEXTAREA ROWS=10 COLS=80 NAME=input>
+\documentclass[12 pt]{article}
+
+\begin{document}
+\section{Introduction}
+
+\section{Methods}
+\begin{enumerate}[(i)]
+\item item 1
+\item item 2
+\end{enumerate}
+
+\end{document}
+
+</TEXTAREA><BR/>
 <INPUT TYPE=SUBMIT VALUE=Count!>
 </CENTER> </FORM>
 
-<FORM METHOD="post" action="texWordCount.cgi">
-<B>Option 2:</B>
-Or enter a file containing a single LaTeX file to count words: <INPUT TYPE=FILE
-NAME=file><BR/>
-<INPUT TYPE=SUBMIT VALUE=Count!> </CENTER> </FORM>
+<FORM ENCTYPE="multipart/form-data" METHOD="post" action="texWordCount.cgi">
+
+<B>Option 2:</B> Or enter a file containing a single LaTeX file to
+count words.  E.g., similar to this <A
+HREF="test.tex">test.tex</A>.<BR/>
+
+<INPUT TYPE="FILE" NAME="file"> <INPUT TYPE="RESET" VALUE="Reset">
+<INPUT TYPE="SUBMIT" VALUE="Count!">
+
+</CENTER> </FORM>
 
 <!-- Kudos ---------------------------------------------------------------------- -->
 
@@ -75,7 +94,11 @@ texWordCount.pl I noticed that using the -u option results in the file
 being word counted being modified in a rather dangerous manner likely
 to result in data loss if the user does not have a backup.  (among
 other things the \inputs were permanently input and the end of the
-file was cut off completely.)"
+file was cut off completely.)"</P>
+
+<P STYLE="color:blue;">&gt; Currently to address this problem, we have
+disabled the -u flag when \inputs or \includes are detected and
+processed.</p>
 
 <!-- People  ---------------------------------------------------------------------- -->
 
