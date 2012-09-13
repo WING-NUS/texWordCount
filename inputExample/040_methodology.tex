@@ -1,0 +1,55 @@
+Our system, SWING, is a sentence extractive summarizer that is designed to be an easy-to-use and effective testbed for comparative evaluation of summarization methods.  Input data is pre-processed using standard techniques, incorporating stop word removal and stemming for better computation of relevance. Our summarization system is fundamentally based on supervised learning framework. A set of features are derived for each sentence in the input documents to measure their importance. We compute two classes of features, at the topic and category levels. We first discuss a set of \textit{generic features} used in SWING, 
+% Min: do you need to define ``TopicSumm''?  Seems cumbersome.  I would try to remove it.
+referred to as \textit{TopicSumm}, as these features only aim to model information about topics. The feature scores are combined together with a set of weights derived from support vector regression (SVR)~\cite{svr}. Finally, the Maximal Marginal Relevance (MMR) algorithm~\cite{carbonell1998use} is used to perform sentence re-ranking and selection. Later in Section~\ref{sec:csi}, we introduce features to compute our key innovation: the category-specific importance (CSI) of sentences. TopicSumm is augmented with CSI features to produce guided summaries.
+
+\subsection{Generic Features}
+\label{sysoverview:features}
+Each sentence is represented by a vector of feature scores for learning.  We used three features: (1) sentence position, (2) sentence length, and (3) a modified version of document frequency to calculate the generic topic relevance of a sentence.
+%\vspace{1mm}
+
+\noindent\textbf{Sentence position} \cite{Edmundson:1969} is a popular feature used in summarization especially for news domain. The intuition is that leading sentences in a news article usually contain summarizing information. Accordingly, the score of a sentence is gradually decreased from the first sentence to the last sentence in a document based on its position.
+
+\noindent\textbf{Sentence length} is a binary feature that helps in avoiding noisy short text in the summary. The value of this feature is 1 if the length of sentence is at least 10, and zero otherwise. The value 10 is empirically determined in our system tuning.
+
+\noindent\textbf{Interpolated N-gram Document Frequency (INDF) } is an extended formulation of the popular document frequency (DF) measure. The efficacy of DF in summarization has been previously demonstrated by~\cite{ICON_2009,Schilder-Kondadadi-08}. It computes the importance of a token as the ratio of the number of documents in which it occurred to the total number of documents. We extend the use of DF from unigrams to bigrams. INDF is the weighted linear combination of the DF for unigrams and bigrams of a sentence. Since bigrams encompass richer information and unigrams avoid problems with data sparseness, we choose a combination of both. The INDF of a sentence $s$, is computed as:
+\begin{eqnarray*}
+INDF(s) = \frac{\alpha(\sum_{w_{u} \in s} DF(w_{u})) + (1-\alpha) (\sum_{w_{b} \in s} DF(w_{b}))}{|s|} 
+\end{eqnarray*}
+where $w_{u}$ are the unigram and $w_b$ are the bigram tokens in sentence $s$. $\alpha$ is the weighting factor that is set to 0.3, after tuning on the development set. 
+
+\subsection{Training and SVR}
+Each sentence is scored with the above three sets of features. The features are given weights by a support vector regression model, following the methodology described in~\cite{ICON_2009}. We train the regression model using the ROUGE-2 similarity of the sentences with human models as the objective to maximize. Data from TAC 2010 is used as the training corpus, and the trained regression model is used to predict the saliency scores of each sentence in the TAC 2011 test set. 
+
+\subsection{Sentence Re-ranking}
+After each sentence has been scored, the maximal marginal relevance (MMR)~\cite{carbonell1998use} algorithm is used to re-rank and extract the best sentences to generate a 100-word summary. In our implementation, the MMR of a sentence \textit{s} is computed as:
+\begin{equation*}
+MMR(s) = Score(s) - R2(s, S)
+\label{eqn:mmr1}
+\end{equation*}
+where $Score(s)$ is the score predicted by the regression model, $S$ is the set of sentences already selected to be in the summary from previous iterations, and $R2$ is the predicted ROUGE-2 score of the sentence under consideration ($s$) with respect to the selected sentences ($S$).
+% We have also experimented with computing the MMR value based on the term frequency/inverse document frequency (TFIDF) of the words in each sentence, but we found that the using the R2 values gives us better extracted sentences when evaluated against ROUGE. 
+
+\subsection{Post-Processing}
+There are many extraneous text fragments in the corpus that are uninformative. These include news agency headers and the reporting date of the articles, among others. 
+% Min: modified description.  Is it ok?
+These are removed automatically during post-processing from the summaries with the use of a modular, post-processing system that matches regular expressions.
+
+Table~\ref{table:automated_eval_generic} provides the evaluation results of % TopicSumm
+SWING
+when using only the above discussed generic features on the test dataset. We also provide the results of two baseline systems commonly used in TAC for comparison. \textit{FirstSent} returns the top sentences from the most recent article until the summary length (100 words) is reached, and \textit{MEAD} is the output of the \textit{MEAD}, a popular open-source summarizer~\footnote{http://www.summarization.com/mead/}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l||l|l|l}
+Configuration & ROUGE-2 & ROUGE-SU4  \\ \hline
+TopicSumm     & 0.13392   & 0.16513  \\
+FirstSent & 0.06410   & 0.09934 \\
+MEAD & 0.08682   & 0.11749 \\
+\end{tabular}
+\caption{ROUGE scores for TopicSumm and baselines.}
+\label{table:automated_eval_generic}
+\end{table}
+
+The ROUGE scores indicate that our generic system 
+% (TopicSumm) 
+surpassed the baseline systems by a huge margin, and is a competitive configuration to compare with in the remaining parts of this paper.

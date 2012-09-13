@@ -1,0 +1,286 @@
+% Min: try to omit 2 header in a row
+% \subsection{Motivation}
+\label{csi_motivation}
+% Min: its still confusing.  Probably you can use a small diagram to show something like
+% Article belongs-to Document-Set belongs-to Topic belongs-to Category has-many Aspects
+% Either here or at the beginning.
+
+In the guided summarization task, summaries are generated for each topic, where each topic belongs to one or more categories. The purpose for providing this manually-given classification is so that the summaries can focus on the content related to the aspects associated with the category. We want to leverage this knowledge of the category of a topic to improve generated summaries. 
+
+% ZH: it is not a ranking task, it is a regression task
+In the extractive summarization scenario we have, 
+%the summarization problem can be formulated as a ranking task where salient sentences are ranked ahead of less salient sentences for extraction. 
+summarization is formulated as a supervised regression task where the system learns to score the saliency of sentences.
+The idea behind CSI is to exploit information which is specific to a particular category, and use this as a guide to the saliency of sentences from the source documents.  One such possible category-specific information could be how words are used within the topics of each category. For a category such as \emph{Accidents}, we may expect to see words like ``died'', ``collision'' in the associated source documents more commonly than we would in a general piece of English text. 
+% How about words which are too specific to a topic and not the whole cateogry, do we mention it here?
+For multi-document summarization, we hypothesize that the word frequency statistics will be similar for document sets within the same category and will be different than those across document sets from different categories.
+For example, a set of news articles on ``2008 Sichuan earthquake'' may share similar word statistics with another set of news articles reporting ``2011 Japan earthquake and tsunami'' as these two sets belong to the category of \emph{Accidents and Natural Disasters}. However, the word statistics will have a different distribution when compared to a set of news articles on ``U.S. presidential election'' as they are from different categories.
+
+To find out if there is indeed a difference in the word usage across each of the categories, we independently performed an analysis of the word usage in each category. To quantify this difference, we applied the log-likelihood ratio test (LLR) \cite{llr}. The LLR of a word $w$ across two categories $c_{1}$, $c_{2}$ is defined as:
+%Table consisting of words with high LLR value
+\begin{displaymath}
+LLR(w) = 2*\sum_{i\in {c_{1},c_{2}}}((a_i*log(\frac{a_i*F}{b_i*f(w)})) 
+\end{displaymath}
+where $a_i$ is the frequency of word w and $b_i$ is the total frequency of all words in category $c_i$. F is the total frequency of all words, and $f(w)$ is the frequency of $w$ across all categories. A word with a high LLR value implies that it co-occurs in both categories surprisingly often, or surprisingly rarely.
+
+We obtained a list of words with high LLR value (99th percentile; 0.1\% level; value = 6.63) for each category. 
+For illustration, the top ten words for each of the five categories are shown in Table~\ref{table:csi_list}.
+
+\begin{table}[h]
+\centering
+\begin{center}
+\begin{tabular}{l||l}
+\textbf{Category} & \textbf{Words}  \\ \hline
+Accidents & bridge, bangladesh, crane, weather, spill, cyclone, \\
+          & survivor, earthquake, oil, crash \\
+Attacks   & attack, school, police, gunman, terrorist, shoot, \\
+          & condemn, fbi, molest, nuclear \\
+Health    & food, safety, children, recall, sleep, cancer, organ, \\
+          & heart, blood, risk\\
+Resources & water, turtle, coral, ivory, global, conserve, warm, \\
+          & decline, poach, tuna\\
+Investigations& charge, trial, guilty, investor, testify, plead, robbery, \\
+              & taylor, former, conspiracy\\
+\end{tabular}
+\end{center}
+\caption{Top ten words listed in decreasing order of LLR values in each of the TAC categories.}
+\label{table:csi_list}
+\end{table}
+
+The table shows that almost all of the words are semantically related to their corresponding categories. For example, the first word for category \emph{Attacks} is actually ``attack'', while that for category ``Resources'' is ``water'' as some documents in the category talks water resources. We expect that a good summary will contain a fair amount of these category-specifc words. 
+To validate this, we examine the densities of these words in both the model summaries and 
+% Min: I thought document sets belong to topics which belong to categories?  The phrasing seems to imply documents belong directly to categories.  Rephrased
+%document set of a category.
+all of the document sets that belong to a category.
+ Here, density is computed as the ratio of the sum of the term frequencies of all the words found in the list to the total term frequency of the category. If a word is used more frequently in a model summary compared to a more general document set, we would expect a higher density value for the model summary.
+
+\begin{figure}[h]
+\centering		
+\includegraphics[width=0.6\textwidth]{csi-density.png}
+\caption{Comparison of density of category-specific words across model summaries and document sets.}
+\label{fig:csi-density}
+\end{figure}
+
+%Some of the words in the list such as ``bangladesh'' in \emph{Attacks} and ``taylor'', ``former'' in \emph{Investigations} that are not actually category specific, but gets high LLR value due to heavy usage in some topics of the category. All such words are manually removed from the list. 
+The word densities for both the model summaries and document sets for each category are plotted in Figure~\ref{fig:csi-density}. It shows that the words identified by the LLR criterion are indeed used more often in the model summaries than in the document sets. 
+This validates that a good summary will contain more category-specific words, and
+thus bolsters our intuition that the difference in word usage across each category is a useful guide in generating a good summary.
+%discerning salient sentences for extractive summarization.
+
+\subsection{Category-Specific Features}
+Having determined the efficacy of category-specific word usage, we design two features, category relevance score (CRS), and category KL-divergence (CKLD), to modeland exploit this property.
+
+\noindent\textbf{Category Relevance Score (CRS)} computes the importance of a word with respect to a category, using the frequency statistics of the word in constituent topics and topic documents of the category. As every topic in the category is related, the topic frequency of a word is directly proportional to its categorical relevance. Similarly, 
+% Min: I can't parse this sentence
+the larger the number of topic documents a word appears across the category, the more relevant it is to the category. CRS is the linear interpolation of frequency scores at topic (TF) and document level (CDF). The score of a sentence $s$ in category $c$, is calculated as:
+% Min: Why is document level called *C*DF?
+
+\begin{eqnarray*}
+CRS(s) = \frac{\sum_{w \in s} CRS_c(w)}{|s|}
+\end{eqnarray*}
+where $CRS_c(w)$ is calculated as:
+\begin{eqnarray*}
+CRS_c(w) = \beta * TF_c(w) + (1-\beta) * CDF_c(w)
+\end{eqnarray*}
+and $TF_c(w)$ and $CDF_c(w)$ for each are computed as:
+\begin{displaymath}
+%TF_c(w) = \frac{ | \{ t:w \in t, ~~\forall t \in c \} | }{|T_c|} 
+    TF_c(w) = \frac{|\{ t:w \in t, ~~\forall t \in c \} |}{|T_c|}
+\end{displaymath}
+\begin{displaymath}
+    CDF_c(w) = \frac{|\{ d:w \in d, ~~\forall d \in t \cap t \in c \} | }{|D_c|}
+%CDF_c(w) = \frac{ | \{ d:w \in d, ~~\forall d \in t \cap t \in c \} | }{|D_c|} 
+\end{displaymath}
+
+where $t$ and $d$ represent topic and document, respectively, and $T_c$ and $D_c$ are the sets of topics and documents in category $c$, respectively. The value of $\beta$ was determined empirically, optimally set to 0.7.  This setting highlights that topic-level influence is more important that of the document level.
+
+\noindent\textbf{Category KL-Divergence Score (CKLD)} is a differential measure that calculates the importance of a word using KL Divergence. Also known as information divergence, it quantifies the information gain between two probability distributions. Category KLD (CKLD) measures the divergence of probability distribution of a word in the current category ($c$) to its distribution in the whole corpus($C$). The greater the divergence from $C$, the more informative the word is for category $c$. The CKLD value of a sentence $s$ is given as:
+\begin{displaymath}
+CKLD(s) = \sum_{w \in s} CKLD_c(w)
+\end{displaymath}
+where $CKLD_c(w)$ is calculated as:
+\begin{displaymath}
+CKLD_c(w) = p_c(w)*log\frac{p_c(w)}{p_C(w)}
+\end{displaymath}
+and $p_c(w)$ is the probability of word $w$ in category $c$, $p_C(w)$ is the probability of word $w$ in the corpus.
+
+It is instructive to compare topic-specific features (such as INDF) to category-specific features.
+INDF computes the importance by focusing on a single topic, whereas CRS computes the importance using all the topics within a category, and CKLD uses all the topics in all the categories (i.e., the whole corpus).
+Suppose we summarize the topic ``London bombings'', which fall under the category \emph{Attacks}. Topic level features ({\it e.g.}, INDF) are calculated using only the topic ``London Bombings'', CRS uses the word statistics from all the topics in \emph{Attacks}, and CKLD uses the statistics from all the categories in the dataset.
+
+% Min: do you want to describe the relationship of TF and IDF as intra document, and inter document measures and use that to relate to CRS and CKLD?
+The key difference between CRS and CKLD is that CRS tries to promote words which are important to all the topics within a category, while CKLD seeks words which are unique in terms of word usage in a category. In other words, CRS is an {\it intra-category} measure, while CKLD is an {\it inter-category} measure.
+The distinction between these two is subtle but important. 
+Table~\ref{table:crs_ckld_list} shows the top five words in descending order of CRS and CKLD in each category.
+Consider two words such as ``report'' and ``Madoff'' for the category of \emph{Investigations}. 
+The word ``report'' ranks top for CRS in this category and appears in three categories, while ``Madoff'' ranks top for CKLD and only appears in \emph{Investigations}.
+CKLD will be able to detect if these two words are used different from how they are used in the other categories, which explains the fact that most words in the list appear only in one category. 
+In this example, the word ``Madoff'' is a person name which is likely important only in some topics in \emph{Investigations} but not in other categories, while ``report'' is important to the \emph{Investigations} category as it appears in seven out of eight topics in this category, and it is also found important in the other two categories (\emph{Accidents} and \emph{Attacks}).
+We hypothesize that these intra- and inter-category aspects of CRS and CKLD will be complementary to each other, which we will validate in the experiment section.
+
+%The frequencies computed in this section has three levels of hierarchy in the corpus structure. The lowest being words followed by documents and finally the topics within a category. Table~\ref{table:category_scores} provides the scores computed for the word `attack' in all the categories, for a better understanding of the terms TF, CDF and $p_c(w)$. Clearly the frequency distribution of the word `attack' is distinctive for category ``Attacks'' from other categories, and also specific to category. 
+
+%\begin{table*}[h]
+ %\centering
+ %\begin{center}
+%\begin{tabular}{l||l|l|l|l|l|}
+%``attack'' & Accidents & Attacks & Health & Resources & Investigation  \\ \hline
+%Topic Frequency ($TF_{c}$) & 2/9 & 7/9 & 4/10 & 1/8  & 5/8 \\
+%Category DF ($CDF_{c}$) &  2/90 &  50/90 & 19/100 & 1/80 & 21/80 \\
+%Term Frequency ($p_{c}(w)$) &2/18880 & 88/18588 & 34/24524 & 1/22550 & 36/21305\\
+%\end{tabular}
+%\end{center}
+%\caption{Category level frequency scores for word `attack' in TAC 2011 corpus}
+%\label{table:category_scores}
+%\end{table*}
+
+\begin{table}[h]
+    \small
+\centering
+\begin{center}
+\begin{tabular}{l||l|l}
+    \textbf{Category} & \textbf{CRS}    & \textbf{CKLD}  \\ \hline
+Accidents   & official,    people,  {\bf report},  news,    accident    & crane, bridge,  construction,    java,    people \\
+Attacks     & attack,  {\bf report},  killed,  state,   police  & attack,    pirate,  police,  school,  israel \\
+Health      & product,   research,    company, increase,    time & food, toy, sleep,   vitamin, product \\
+Resources   & conserve,  world,   protect, manage,  country & coral, water,   tuna,    elephant,    turtle \\
+Investigations& {\bf report},  charge,  people,  killed,  family & {\bf madoff}, taylor,  alvarez, prosecutor,  charge \\
+\end{tabular}
+\end{center}
+\normalsize
+\caption{Top five words listed in decreasing order of CRS and CKLD, for each category.
+% Min: Do you really need to highligh madoff and report?  Just say in the running text that these words were plucked from the Table as an illustrative example.
+ ``Madoff'' and ``report'' are bolded for illustration.}
+\label{table:crs_ckld_list}
+\end{table}
+
+\subsection{Experiments}
+
+% Min: Try not using topicsumm.  How about GenericSWING? or TopicSWING?
+% Not fixed by Min.  Please decide yourselves and then globally change properly
+To evaluate the efficacy of the proposed category-specific importance features ({\it i.e.}, CRS and CKLD), we added them to the baseline TopicSumm summarizer described earlier. Table~\ref{table:automated_eval_csi} shows the ROUGE measures of the various summarizer configurations when tested on the TAC-2011 data set. TopicSumm+CRS uses the CRS feature alongside the generic features described in the previous section ({\it i.e.}, sentence position, sentence length, and INDF). Likewise TopicSumm+CKLD uses the CKLD feature in addition to the generic features, and TopicSumm+CRS+CKLD uses both CRS and CKLD. ROUGE scores of the top-performing summarizers
+% Min: Uh, is this correct?  The table and text both actually refer to the actual systems' names...
+\footnote{We have anonymised the names of the systems, and have also chosen to omit details of our system which also participated in TAC-2011 for the purpose of this double-blind review.}, \CLASSY and \POLYCOM, at TAC-2011 are also provided for comparison.
+%~\cite{tac:polycom}
+%~\cite{tac:classy}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l||l|l}
+Configuration & ROUGE-2 & ROUGE-SU4 \\ \hline
+TopicSumm+CRS+CKLD          & \textbf{0.13796} & \textbf{0.16808} \\
+TopicSumm+CRS               & 0.13702 & 0.16788  \\
+TopicSumm+CKLD              & 0.13525 & 0.16649   \\ 
+%\SWINGTAC 					& 0.13440 & 0.16519 \\
+\CLASSY 					& 0.12780 & 0.15812 \\
+\POLYCOM 					& 0.12269 & 0.15974\\
+\end{tabular}
+% Min: cite official report.
+\caption{ROUGE scores over TAC-2011 data set (partially replicated from BUG).}
+\label{table:automated_eval_csi}
+\end{table}
+
+The table shows that adding either one of the category-specific features to TopicSumm outperforms the two top-performing summarizers on both ROUGE-2 and ROUGE-SU4. When comparing TopicSumm+CRS and TopicSumm+CKLD, TopicSumm+CRS slightly outperforms TopicSumm+CKLD with 0.00177 for ROUGE-2 and 0.00139 for ROUGE-SU4. 
+This is explained by the fact that CRS captures intra-category importance of words which focuses on word usage within a topic of a specific category.
+As TAC systems are to summarize a single topic (but not a single category), it is reasonable that CRS provides more improvement when we look at the ROUGE scores on the topics.
+We expect that if systems were asked to instead summarize categories, CKLD would yield a larger improvement as CKLD captures inter-category importance of words which would be more pertinent to this hypothetical task.
+
+% ZH3: do we have the p value for the t-test?
+When both category-specific features are used ({\it i.e.}, TopicSumm+CSI), the performance for both ROUGE-2 and ROUGE-SU4 are higher than that for TopicSumm+CRS and TopicSumm+CKLD. This validates our hypothesis that both features are complementary to each other as they measure word statistics from different angles ({\it i.e.}, intra- vs. inter-category). 
+Two-tailed student's t-test verifies that TopicSumm+CSI significantly outperforms TopicSumm, \CLASSY, and \POLYCOM.
+%(two-tailed) is performed to verify if the improvements obtained by employing the proposed CSI features are statistically significant. 
+%The p-values for the configurations TopicSumm+CRS , TopicSumm+CKLD and TopicSumm+CSI are  0.2884, 0.4321, 0.0496 respectively. The ROUGE measures for the configuration TopicSumm+CSI (p-value $<$ 0.005) is significantly better than the baseline system TopicSumm. They are also significantly better from \SWINGTAC, \CLASSY\ and \POLYCOM.
+%The ROUGE measures for the configuration TopicSumm+CSI are significantly better than both \CLASSY and \POLYCOM.
+ 
+\subsubsection{Chunk-sensitive CSI Scoring}
+% Min: I don't see how this first part motivates the idea at all.  The transition to the final sentence in the paragraph doesn't follow.  Needs to be much more clear.  Omitted the whole paragraph for now.
+% Previous work~\cite{summ:sentencereduction} has shown that compressing sentences through extraneous phrase removal can be helpful in improving the conciseness of the summary. Such systems make use of the linguistic knowledge, context information to decide which phrases are selected into the compressed sentences. However such compressions are computationally expensive, resource intensive and can lead to readability problems and false implicature when compressed incorrectly.
+% Alternately, we use phrase information of sentences in computing the scores using CSI features.
+
+Consider the word ``bridge'' from the category of \emph{Accidents}. ``Bridge'' can be part of a NP chunk (e.g. \emph{The bridge across the road...}), or part of a VP chunk (e.g. \emph{Let's bridge our differences...}). When found in a NP chunk, we can (casually) associate the use of the word with accidents. For example traffic accidents can happen on bridges, or bridges can collapse. When found in a VP chunk however, this association is lost. It is unfair then to regard a sentence as being more salient to the category \emph{Accidents} if it contains the word ``bridge'' in forms outside of a NP chunk.  We thus need to first determine the word's role within in a sentence, before deciding if it contributes to the saliency of the sentence.
+
+Up to this point, we have assigned sentence-wide CSI scores; the sentence score aggregates the CSI scores of all words in the sentence. To test the above, we build variants of our scorer that ignores the CSI scores of word occurrences when they appear in chunks outside of a target chunk type. 
+
+% Min: this probably is a suboptimal way of doing this, but we can discuss later.
+To implement this, we parse all the input sentences from the source documents using the OpenNLP constituent parser~\footnote{\url{http://opennlp.sourceforge.net/projects.html}}. From the parses, we identify the constituent noun phrases (NP), verb phrases (VP) and prepositional phrases (PP). Instead of computing the CSI value of every word in the sentence, only the words found in a particular syntactic chunk (i.e. one of NP, VP, and PP) are used to compute its score. The ROUGE evaluation results of the experiments are shown in Table~\ref{table:csi_phrases}.
+
+%results
+\begin{table}[h]
+\centering
+\begin{tabular}{l||l|l}
+Configuration & ROUGE-2 & ROUGE-SU4  \\ \hline
+NP     & \textbf{0.13934}   & \textbf{0.16836}  \\
+VP & 0.1354  & 0.16602 \\
+PP & 0.13494   & 0.16592 \\
+\hline
+All & 0.13976 & 0.16808 \\
+\end{tabular}
+\caption{ROUGE scores of TopicSumm+CRS+CKLD configuration when CSI computation is restricted to specific syntactic chunks.  ``All'' denotes the non-chunk specific system, where results are repeated from Table~\ref{taable:automated_eval_csi}.
+\label{table:csi_phrases}
+\end{table}
+
+% ZH3: is this compared to the original TopicSumm+CSI? What is the p value?
+% BUG: Please address ZH3 or remove ``statistically''
+By restricting CSI scores to word occurences found only within NP chunks, we obtain a statistical significant improvement on ROUGE measures. As.  Restricting to VP and PP chunks reduced performance as compared to the non-restrictive baseline, validating that occurrences within the NP chunks are most informative when they are used to compute the category-specific importance of the sentences.
+
+%\subsubsection{}
+%Followed by the encouraging results of CSI features, we are inclined to carry out further experiments in this direction. 
+%Subsequently we analyzed the role category specific information on guided summarization task in two dimensions. First, we generalized our approach to a normal corpus without any categorization of topics. Secondly we explored the possibility of scoring a sentence using only words in particular phrases.
+\subsubsection{Clustering Accuracy}
+So far, we definitively demonstrated the utility of CSI features in guided summarization.  However, the previous experiments made use of gold-standard, human-assigned categories for each topic, provided manually by the TAC organizers.
+% Min: edited.
+% Given a set of well-defined manually-created topics and categories, CRS and CKLD aid the identification of salient sentences.
+% We are interested to investigate further and ascertain if the features are robust to the accuracy of the underlying categorization.  
+In more typical multi-document summarization scenarios, such gold-standard categorization may not be provided.  Might CSI features still be useful when such categorization is done by automated methods that generate less-than-perfect categorization results?  To answer this, we set out to measure the effect that the quality of category assignments have on CSI feature efficacy. 
+
+We start by placing all the topics into one large cluster, ignoring the original human-assigned categories. Various automated clustering algorithms are then run to cluster the topics. The summarizer is then provided with these automatic clustering results to compute summaries as per the pipeline previously discussed.
+%In previous work, clustering algorithms have been used to improve the content coverage in a summary~\cite{simfinder} ~\cite{summ:multidoc}. They cluster distinctive subtopics within a topic and a representative sentence of each cluster is selected for the summary. We use clustering algorithms to cluster topics (set of documents) into categories instead of sentences into sub topics. 
+
+% Min: omitted, fluff
+% For the purpose of this experiment, we want to examine whether the proposed features are robust to clustering accuracy.
+% To contrast the gold-standard clusters that we already have in the form of the categories assigned to each topic,
+Since our focus in this experiment is to measure the robustness of the CSI features, a simple clustering method suffices.  We used with a simple approach, in which a bag-of-words feature is used for the clustering, considering only words from the first sentence of each document. This is reasonable as the first few sentences of a news article often give a good indication of the content to follow in the rest of the article. 
+% Thus this is a reasonable clustering feature to use. %Yet it is not able to cluster very effectively because of its simplicity.
+
+%Each topic in the collection is represented by the first sentences of its constituent documents. As the corpus is extracted from news domain, it is safe to assume that first sentence contains representative features of the respective document. The feature space is further reduced by performing Principal component analysis (PCA). As the instance to feature ratio for our experiments is very low, the clustering accuracy is highly dependent on the feature selection methods used. 
+
+We experiment with three clustering algorithms of K-Means, X-Means and Expectation Maximization (EM), using different numbers of clusters. All experiments were carried out using the WEKA~\cite{weka} package and used only the simple bag-of-words feature to construct clusters. Evaluation results of the clustering algorithms are shown in Table~\ref{table:csi_clustering} along with p-values from the 
+% ZH3: it is TopicSumm+CSI, not TopicSumm, right?
+% Min: check my edit, factually correct?  Also edited the caption.
+Student's t-test when compared with the TopicSumm+CRS+CKLD configuration that used the gold-standard clusters provided by TAC. Each configuration in the table uses the automatic clustering results assigned by the corresponding clustering algorithm while computing the relevant CSI scores.
+
+%Table of ROUGE results
+\begin{table}[h]
+\centering
+\begin{tabular}{l||l|l|l|l}
+% ZH3: size means number of clusters or cluster size?
+% Min: P-value is specific to R2 or R-SU4?  Can't be both
+% Consider re-writing as ``& 0.13... (p=.15) &''
+Clustering Method & Size & ROUGE-2 & ROUGE-SU4 & p-value \\ \hline
+\multirow{2}{*}{EM}
+&3     			& 0.13547 & 0.16675 & 0.1542 \\
+&4     			& 0.13659  & 0.16773 & 0.137 \\
+&5             & 0.13647   & 0.16762  & 0.142\\
+\hline
+\multirow{2}{*}{X-Means}
+&3              & 0.1364  & 0.16752 & 0.1517 \\
+&4             & 0.13603   & 0.16735  & 0.1472 \\
+&5             & 0.13546   & 0.16681  & 0.1632\\
+\hline				
+\multirow{2}{*}{K-Means}
+&3              & 0.13574   & 0.16677 & 0.1586 \\
+&4             & 0.13696  & 0.1679  & 0.0986\\
+&5             & 0.13569  & 0.16696  & 0.1621\\
+\end{tabular}
+\caption{ROUGE scores of TopicSumm+CRS+CKLD configuration using different clustering schemes.}
+\label{table:csi_clustering}
+\end{table}
+
+From Table~\ref{table:csi_clustering}, we see that while all automatic clustering algorithms reported a drop in ROUGE compared to the use of gold-standard categories, the difference in the scores were generally not statistically significant.  This is a positive result as it shows that clean categorization results are not necessary to obtain utility from our CSI features; automatic clustering can be employed to create the necessary input to calculate CSI features.
+
+The drop in performance is expected: since CSI features measure information specific to a category, noisy clusters produced by the automatic algorithms are more likely to be less well-defined than the human assigned gold-standard categories. Any category-specific information will be diluted, and thus features seeking to exploit this information will be adversely affected.
+
+Results among the clustering methods were inconclusive.  Variation in the methods employed and the number of clusters used led to mixed results that did not point towards a clear direction to favor. 
+
+% What is encouraging however is that the use of the proposed CSI features do not lead to a statistically significant degradation of performance.
+%choosing better sample instead of first sentences ?

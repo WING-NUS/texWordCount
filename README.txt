@@ -1,3 +1,20 @@
+The most up-to-date documentation will be the web page (index.html).
+This file just provided for reference.
+
+--------------------------------------------------
+File Listing and Description
+
+cgiLog.txt	- log of cgi calls, should be omitted from the distribution.
+index.html	- the web page, live at http://wing.comp.nus.edu.sg/~min/texWordCount.
+inputExample/	- an example of \inputs through the main.tex file.  You can try running ../textWordCount.pl main.tex from within the directory
+LICENSE.txt	- LPGL license text.
+npic.css	- stylesheet used for index.html and CGI output.
+README.txt	- this file.
+test.tex	- sample single file .tex for testing.  Also see the inputExample/ files
+texWordCount.cgi*	- the CGI backend, just for web-based demonstration
+texWordCount.pl*	- the core file.  This is really the only file you'll need.  Requires perl.
+
+--------------------------------------------------
 
                TexWordCount: a script to count words in LaTeX
 

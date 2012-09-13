@@ -1,0 +1,102 @@
+\documentclass[10pt,a5paper,twoside]{article}
+\usepackage{coling2012}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{amsmath}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{float}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{fancybox}
+\usepackage{verbatim}
+% Relative path to find images
+\graphicspath{{images/}}
+
+\setcounter{secnumdepth}{4}
+\setcounter{tocdepth}{4}
+
+\DeclareMathOperator*{\argmax}{arg\,max}
+%\setlength\titlebox{6.5cm}    % Expanding the titlebox
+
+\newcommand{\SWING}{\texttt{SWING}}
+\newcommand{\SWINGTAC}{SYS1}
+\newcommand{\POLYCOM}{SYS2}
+\newcommand{\CLASSY}{SYS1}
+
+\title{Exploiting Category-Specific Information for \\Multi-Document Summarization}
+%for authors: in case of more than four author names ref. to commented line below 
+%\author{$Annie~SMITH^{1, 2}~~~LI~Xiao Dong^{1, 3}$\\$~~~Third~Author^{1, 2}~~~Fourth~Author^{1, 3}~~~ Fifth~Author^{2, 3}$\\
+%\author{$Jun-Ping~NG~~~Min-Yen~KAN$\\
+%{\small  National University of Singapore\\ 
+%  \texttt{\{junping,kanmy\}@comp.nus.edu.sg} \\ 
+%}}
+%\author{$Jun-Ping~Ng~~~Praveen~Bysani~~~Ziheng~Lin
+%  ~~~Min-Yen~Kan~~~ Chew-Lim~Tan$\\
+% {\small	 School of Computing~~~National University of Singapore\\
+%  \texttt{\{junping,bpraveen,linzihen,kanmy,tancl\}@comp.nus.edu.sg}\\
+%}}
+
+%\date{}
+\begin{document}
+\maketitle
+
+\abstractEn{
+%\begin{abstract}
+\input{010_abstract.tex}
+%\end{abstract}
+}
+
+\keywordsEn{text summarization}
+
+
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+\input{020_introduction.tex}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Corpus}
+\label{sec:corpus}
+\input{030_corpus.tex}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Methodology}
+\label{sec:methodology}
+\input{040_methodology.tex}
+
+\section{Category Specific Information}
+\label{sec:csi}
+\input{041_csi.tex}
+%\section{Update Summarization}
+%\input{042_update.tex}
+%\section{Experiments}
+%\label{sec:experiments}
+%\input{050_experiments.tex}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Analysis}
+\label{sec:analysis}
+\input{060_analysis.tex}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conclusion}
+\label{sec:conclusion}
+\input{070_conclusion.tex}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\section*{Acknowledgements}
+%\input{080_acknowledgements.tex}
+%\section*{Acknowledgements}
+%\input{080_acknowledgements.tex}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% texWordCount - begin
+% texWordCount - end
+
+\bibliographystyle{apa}
+\bibliography{acl-hlt2011}
+
+\end{document}

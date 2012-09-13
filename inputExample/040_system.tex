@@ -1,0 +1,211 @@
+% Min: obvious, commented out
+% This section describes the architecture of \SWING.
+\SWING\ is designed to be an easy-to-use and effective testbed for the evaluation of summarization techniques. Design decisions were made keeping in mind the need for the system to be easily modifiable. 
+
+\subsection{Architecture}
+% Min: not necessary.
+%The system is developed in Ruby and 
+The system consists of several independent Ruby programs linked together with Unix pipes.
+
+% Min: global.  Dont' depend on formatting to indicate grammatical breaks -- also use punctuation
+%\textbf{Independent modules and programs} Building ...
+\textbf{Independent modules and programs.} Building independent modules makes it easy to add and remove functionalities to and from the system. New ideas and techniques can be incorporated easily without affecting the other parts of the system.
+
+\textbf{Unix pipes.} Unix pipes are a stable, well-proven method of inter-process communication. By standardizing the data format of input and output streams, the independent modules can communicate with each other easily. We have chosen to make use of Javascript Object Notation (JSON) to define the input and output streams because it is simple to construct and easy to process programatically.
+
+\begin{figure}
+\centering		
+\includegraphics[width=0.45\textwidth]{overall-architecture.png}
+\caption{\SWING\ pipeline.}
+\label{fig:swing-pipeline}
+\end{figure}
+
+Figure~\ref{fig:swing-pipeline} illustrates how the different independent modules are chained together. Key functionalities which we have incorporated into this  pipeline include:
+
+\textbf{Input.} Converts provided source documents into a JSON formatted string which is compatible with the rest of the system.
+
+\textbf{Preprocessing.} Processes input text as desired before proceeding with summarization.
+
+\textbf{Summarization.} The main functional component which implements the desired summarization algorithm.
+
+\textbf{Output.} Transforms the output of the pipeline into a desired format for evaluation and validation.
+
+\subsection{Methodology}
+
+Our summarization system is based fundamentally on a supervised machine learning approach. A set of syntactic features is first derived from the input documents. They are combined together with a set of weights derived from support vector regression (SVR). The model used for SVR is trained on the TAC summarization track data for 2010. After scoring each sentence, the Maximal Marginal Relevance algorithm~\cite{carbonell1998use} is then used to perform sentence re-ranking and selection.
+
+% ZH: this figure doesn't look informative
+%\begin{figure}
+%\centering		
+%\includegraphics[width=0.45\textwidth]{baseline.png}
+%\caption{Producing a Summary}
+%\label{fig:baseline}
+%\end{figure}
+
+\subsubsection{Features}
+\label{sysoverview:features}
+%Mathematical formulations for each feature
+\SWING\ consists of two classes of features: generic features and category-specific features. Generic features include sentence length (SL), sentence position (SP), and a modified version of document frequency. We also use two category-specific features -- Category Relevance score (CRS) and Category KL-Divergence (CKLD) -- to compute category-specific importance (CSI) of a sentence. 
+% Min: obvious, commented out
+% We describe each of them in detail below.
+
+\paragraph{Generic Features}\ \vspace{1mm}
+
+These features capture generic information relevant to all news articles.\vspace{1mm}
+
+\textbf{Sentence position} \cite{Edmundson:1969} is a simple yet effective feature that is being used in summarization in the news domain. The intuition is that leading sentences in a news article usually contain summarizing information. Since the TAC data consists of news articles, we use the positional information to boost the top sentences of an article. The score of a sentence $s$ is computed as,
+
+\begin{displaymath}
+SP(s) = 1 - \frac{p}{N}
+\end{displaymath}
+where $p$ is the position of sentence $s$ and $N$ is the total number of sentences in that article.
+
+% Min: you can cite a reference for the sentence length feature.  I think it was Chin-Yew Lin's work.
+% Min: do you want to discuss overly-long sentences?  This was a feature in other prior work.
+% JPZH : But we dunt have this as a feature?
+\textbf{Sentence length} is a binary feature that checks if the number of words in a sentence is at least 10. This feature helps in avoiding noisy short text in the summary. The value 10 is empirically determined in our system tuning.
+
+\begin{equation*}
+SL(s) = \left\{
+\begin{array}{rl}
+1 &\mbox{ if $len(s) >= 10$ } \\
+0 &\mbox{ otherwise }
+\end{array}
+\right.
+\end{equation*}
+
+% Min: where does the ``S'' come from?
+% Min: It's not really Bigram DF either, but an interpolation of it.  How about renaming it to INDF ? Interpolated Ngram Document Frequency?
+\textbf{Bigram DFS (BDFS)} Document frequency score (DFS) is a  generic scoring feature that has been proven successful in past summarization tasks~\cite{ICON_2009,Schilder-Kondadadi-08}. It computes the importance of a 
+% Min: how about ``token'' instead of ``word''.  You use token also elsewhere.
+% word
+token as the ratio of the number of documents in which it occurred to the total number of documents. We extended the idea of the DFS from unigrams to bigrams. BDFS is the weighted linear combination of the DFS for unigrams and bigrams of a sentence. Since bigrams encompass richer information and unigrams avoid problems with data sparseness, we chose a combination of both. The BDFS of a sentence $s$, $BDFS(s)$, is computed as
+
+\begin{eqnarray*}
+\frac{\alpha(\sum_{w_{u} \in s} DFS(w_{u})) + (1-\alpha) (\sum_{w_{b} \in s} DFS(w_{b}))}{|s|} 
+\end{eqnarray*}
+% Min: how about w_u for unigrams.  For sets, it's more typical to use a capital letter.
+where $w_{u}$ are the unigram and $w_b$ are the bigram tokens in sentence $s$. $\alpha$ is the weighting factor that is set to 0.3, after tuning on the development set. The DFS of a token $w$ is calculated by the below equation,
+
+\begin{displaymath}
+%DFS(t) = \frac{ \{ |d|:t \in d \hspace{2mm}\cap\hspace{1mm} d \in T \} }{|D|}
+%ZH: I changed the eqn to this. pls check whether it is correct
+DFS(w) = \frac{ | \{ d:w \in d\} | }{|D|}
+\end{displaymath}
+where $D$ is the set of documents in the topic and $d$ is a document in $D$.
+
+\paragraph{Category-Specific Features}\ \vspace{1mm}
+
+The guided summarization task provides additional category and aspect information related to each topic. We devise two features, Category Relevance Score (CRS) and Category KL-Divergence (CKLD), to measure the category-specific importance (CSI) of each sentence. CSI is used along with general relevancy features to boost sentences having target category related information.
+
+% Min: again ``word'' or ``token''?  Word meaning a unigram or also inclusive of bigram phrases?
+% JPZH: word is correct here because we work on unigrams
+% Min: too many acronyms?  Do you really need CDFS and TFS as acronyms?  Why the ``S''?  Shouldn't it be CTFS? Or DFS_c?
+\textbf{CRS} computes the categorical relevance of a word, using the frequency of documents (CDFS) and the frequency of topics (TFS) in which the word occurred in a particular category. A linear combination of scores at both topic level and document level is assigned to each word. This feature is devised to utilize category information in guided summarization task and is specific to the task. CRS of a sentence $s$ in category $c$, $CRS(s)$, is calculated as
+
+\begin{eqnarray*}
+\frac{\beta(\sum_{w \in s} TFS_c(w)) + (1-\beta)(\sum_{w \in s} CDFS_c(w))}{|s|} 
+\end{eqnarray*}
+where $TFS_c(w)$ and $CDFS_c(w)$ are computed by:
+
+\begin{displaymath}
+TFS_c(w) = \frac{ | \{ t:w \in t, ~~\forall t \in c \} | }{|T_c|} 
+\end{displaymath}
+
+\begin{displaymath}
+CDFS_c(w) = \frac{ | \{ d:w \in d, ~~\forall d \in t \cap t \in c \} | }{|D_c|} 
+\end{displaymath}
+where $T_c$ and $D_c$ are the sets of topics and documents in category $c$, respectively.
+
+\textbf{CKLD} is a category differential measure that calculates the importance of a word in the category as its KL divergence value of its distribution in the current category ($c$) to all the categories in the dataset ($C$). The greater the divergence from the total set $C$, the more informative the word is for category $c$. The probabilities are computed in terms of document frequencies. The CKLD value of a sentence $s$ is given as:
+
+\begin{eqnarray*}
+CKLD(s)= \sum_{w \in s}p_{c}(w)log\frac{p_{c}(w)}{p_{C}(w)}
+\end{eqnarray*}
+where $p_c$ is calculated as the $CDFS$ of the word, namely:
+
+\begin{displaymath}
+p_{c}(w) = CDFS(w)
+\end{displaymath}
+and $p_C$ is calculated as:
+
+%ZH: what is theta?
+% Min: BUG \theta ?  Need to explain this more thoroughly
+\begin{displaymath}
+p_C(w) = \frac{ | \{d:w \in d, ~~\forall d \in (\bigcup_{c \in C} D_c )\} | }{\sum_{c \in C}|D_{c}|}
+\end{displaymath}
+
+%\subsubsection{Named Entities To Aid Guided Summarization%}
+\subsubsection{Role of Named Entities}
+\label{sysoverview:ne}
+While CSI takes into account the importance of a word relative to the target category to summarize, it does not explicitly allow us a way to tailor the produced summaries to the {\it aspects} required for each category. We observed that many aspects of each category seek objective information such as the name of subjects or the location of a described event. These relate largely to WHO, WHERE and WHEN, hinting that we should look closely at sentences containing named entities.
+
+% Min: this names couple of sentences could be summarized a bit more.  Seems overly verbose.
+To validate our observations, we experimented with 2 named entity related feature classes:
+
+% Min: why capital N?  Use $n$ instead
+%\textbf{Top Entities for Topic (Top$_{topic}$)} This module gathers the top $N$ named entities (i.e. PERSON, LOCATION, etc) from documents within a given document set, and scores sentences which contain these entities positively.
+\textbf{Top Entities for Topic (Top$_{topic}$)} This module gathers the top $n$ named entities (i.e. PERSON, LOCATION, etc.) from documents within a given document set, and assigns a unit score for sentences containing these entities.
+
+%\textbf{Top Entities Corpus Wide (Top$_{corpus}$)} This module gathers the top $N$ named entities (i.e. PERSON, LOCATION, etc) from the whole corpus, and scores sentences which contain these entities positively.
+\textbf{Top Entities Corpus-Wide (Top$_{corpus}$)} As Top$_{topic}$, but with documents drawn from the whole corpus.
+
+Both feature classes are calculated as:
+
+\begin{equation*}
+Top_{x}(s) = \left\{
+\begin{array}{rl}
+1 &\mbox{ if $\exists w \in s, w \in W$ } \\
+0 &\mbox{ otherwise }
+\end{array}
+\right.
+\end{equation*}
+where $W$ is the set of identified top named entities.
+
+\subsection{Training and SVR}
+% Min: do you want to give a final, exhaustive inventory of features in the below sentence?
+% e.g., Each sentence is scored with all <number> features (length, ... ) explained above.
+% JPZH : already explained in submissions
+Each sentence is scored with the features explained above.
+% Min: BUG rephrase ``weighted with weights''.  
+The features are automatically weighted by support vector regression, following the methodology described in~\cite{ICON_2009}. We train the regression model using the ROUGE-2 (R2) similarity of sentences with human models as described in the paper. Data from TAC 2010 is used as the training corpus, and the trained regression model is used to predict the R2 scores of each sentence in the TAC 2011 test set. 
+
+\subsection{Sentence Reranking}
+% Optimised with R2
+
+After each sentence has been scored, the maximal marginal relevance (MMR)~\cite{carbonell1998use} algorithm is used to re-rank and extract the best sentences to make up a 100-word summary. In our implementation, the MMR of a sentence \textit{s} is computed as:
+
+\begin{equation*}
+MMR(s) = Score(s) - R2(s, S)
+\label{eqn:mmr1}
+\end{equation*}
+where $Score(s)$ is the score predicted by the regression model, $S$ is the set of sentences already selected to be in the summary from previous iterations, and $R2$ is the predicted ROUGE-2 score of the sentence under consideration ($s$) with respect to the selected sentences ($S$).
+
+% Min: BUG -- not clear what ``better extracted sentences'' means.  Do you mean better R2 values?  Or better sentences semantically?  Explain
+We have also experimented with computing the MMR value based on the term frequency/inverse document frequency (TFIDF) of the words in each sentence, but we found that the using the R2 values gives us better extracted sentences when evaluated against ROUGE. 
+
+\subsection{Post-Processing}
+% Sentence length
+
+% Min: fill in BUG
+There are many text fragments found within the corpus that are not useful in a summary. These include news agency headers and the date of the article. These are removed automatically during post-processing from our generated summaries with the use of regular expressions.
+
+% Min: Strange!! You already have a feature for sentences under length 10.  How about another feature for sentence length under 3?  Or weighting sentence length as a real-value instead of a binary one?
+%Another post-processing step which we found to be helpful is to drop sentences which are less than 3 words long. In an extractive summary, these sentences do not contribute significantly to content, and we find that it is better to drop these in favour of longer sentences.
+
+After the post-processing step, the summary may get shortened to less than 100 words. The MMR sentence selection step is then repeated until the final summary reaches the intended length.
+
+\subsection{Update Summarization}
+
+In the update summarization task, all processing steps are similar to the generic summarization task, except for MMR re-ranking. We follow our previous work in~\cite{Lin-et-al-07} and modified the MMR equation so that it further penalizes a sentence in set B if it is similar to some other sentence in set A. This is useful because an update summary should not contain duplicated content from the set A  summary. We find that penalizing sentences that are very similar to those found in documents within set A helps to select sentences which are novel. The similarity is again measured with ROUGE-2. The modified MMR is shown as follows:
+
+\begin{eqnarray*}
+MMR(s)  &=& Score(s) - \lambda \cdot R2(s, S) \\
+        & & - \delta \cdot \max_{s' \in A}R2(s, s')
+\end{eqnarray*}
+
+% Min: explain why you need this for update summarization.  E.g., we want to further penalize a sentence based on its most similar sentence in the previously read articles.  
+% JPZH : reworded, elaborated on
+% Min: it's actually not clear why you want just the single max sentence, but since you refer to previous work, it's not likely to get you in trouble.
+The additional, final component of the equation tries to find a sentence in set A that is most similar to $s$ in terms of predicted ROUGE-2.
+During our tuning phase, we found that $\lambda = 0.2$ and $\delta = 0.2$ give the best performance.

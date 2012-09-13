@@ -1,0 +1,58 @@
+% Min: I don't understand the last clause
+The description of the guided summarization task at TAC is similar to aspect-oriented summarization, with aspects derived from category requirements.
+%The task provides a common evaluation platform for trying out various summarization methods.
+We use the dataset provided in TAC-2010 for training our system and the TAC-2011 dataset for testing purposes.
+% Min: the ``while'' implies that you have some point or objection about this?  Removed.
+% While 
+he documents in TAC-2010 are extracted from AQUAINT and AQUAINT-2; documents used in TAC-2011 came from the newswire portion of the TAC-2010 KBP Source data. The test dataset consisted of 44 topics, divided into five categories.
+% Min: why mention so much?  We don't need to know about the second dataset if you're not going to use it? Each topic has 20 relevant news articles, equally divided into two sets (Sets A and B) based on the timestamp of the articles. 
+% Min: similar?  Do you mean the same?  If not, what's the difference? Is the difference important?
+The structure of the training data is similar, containing 46 topics. We use only the articles from Set A for our experiments as the task of summarizing Set B, known as Update Summarization, is a separate task by itself. The distribution of topics into categories for TAC-2010 and TAC-2011 is provided in Table~\ref{table:topic_categories}. 
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l||l|l}
+ Category & TAC-2011 & TAC-2010  \\ \hline
+ Accidents     & 9 (90)  & 7 (70)\\
+ Attacks      & 9  (90) & 7 (70)\\
+ Health  & 10 (100) & 12 (120) \\
+ Endangered Resources & 8 (80) & 10  (100) \\
+ Investigations     & 8 (80) & 10 (100)\\
+\end{tabular}
+\caption{Distribution of topics and documents into categories in TAC-2010 and 2011.  The number of documents per category is shown in parentheses.}
+\label{table:topic_categories}
+\end{table}
+
+The TAC-2011 guided summarization task was to write a 100-word summary for a given topic covering all the aspects. A template of aspects for the category \emph{Health} is shown in Table~\ref{table:health-aspects}.
+
+%\fbox{
+%\begin{minipage}{.8\textwidth}
+%\textit{
+%\small
+%WHAT: what is the issue\\
+%WHO\_AFFECTED: who is affected by the issue\\
+%HOW: how they are affected\\
+%WHY: why the health/safety issue occurs\\
+%COUNTERMEASURES: prevention efforts} 
+%\end{minipage} 
+%}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l||l}
+Aspect & Description  \\ \hline
+\textit{WHAT} & what is the issue\\
+\textit{WHO\_AFFECTED} & who are affected by the issue\\
+\textit{HOW} & how they are affected\\
+\textit{WHY} & why the health/safety issue occurs\\
+\textit{COUNTERMEASURES} & prevent efforts
+\end{tabular}
+\caption{Template of aspects for the \emph{Health} category.}
+\label{table:health-aspects}
+\end{table}
+
+Four Human-written model summaries are provided per topic for each set.
+%  These summaries are used as a gold standard for evaluating machine generated summaries.
+Both automatic and manual measures were utilized by the TAC organizers to evaluate summaries. Automatic evaluation is commonly performed using ROUGE~\cite{rouge}, and was used in TAC. ROUGE determines the quality of a summary through overlapping units such as n-grams, word sequences, and word pairs with human written summaries. Manual measures adopted by TAC organizers included pyramid scoring~\cite{eval:pyramids} and subjective assessments about the quality of the summaries.  Since the original TAC manual evaluation team is not known or available, manual evaluation of new summarization systems is not possible.  As such, we need a fair, objective comparison of our results with previously published results, and can only adopt automated methods.  For this reason, we adopt the automatic ROUGE-2 and ROUGE-SU4 measures.
+% Min: Please add cite.
+ While not ideal, these measures have been found to generally correlate well with manual judgements.
